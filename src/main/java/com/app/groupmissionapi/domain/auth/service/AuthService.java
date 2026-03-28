@@ -1,8 +1,10 @@
 package com.app.groupmissionapi.domain.auth.service;
 
 import com.app.groupmissionapi.domain.auth.dto.request.LoginRequest;
+import com.app.groupmissionapi.domain.auth.dto.request.PasswordForgotResetRequest;
 import com.app.groupmissionapi.domain.auth.dto.request.SignupRequest;
 import com.app.groupmissionapi.domain.auth.dto.response.LoginResponse;
+import com.app.groupmissionapi.domain.auth.repository.redis.PasswordForgotVerificationRepository;
 import com.app.groupmissionapi.domain.auth.repository.redis.RefreshTokenRepository;
 import com.app.groupmissionapi.domain.auth.repository.redis.SignupVerificationRepository;
 import com.app.groupmissionapi.domain.member.entity.Member;
@@ -44,6 +46,7 @@ public class AuthService {
   private final FileService fileService;
   private final RefreshTokenRepository refreshTokenRepository;
   private final SignupVerificationRepository signupVerificationRepository;
+  private final PasswordForgotVerificationRepository passwordForgotVerificationRepository;
 
   private static final int CODE_FAIL_CNT = 5;
   private static final List<String> DEFAULT_PROFILE_IMAGES = List.of(
@@ -164,13 +167,13 @@ public class AuthService {
     // 저장된 인증코드 조회
     String savedCode = signupVerificationRepository.findCode(email);
     if (savedCode == null) {
-      throw new CustomException(SIGNUP_CODE_EXPIRED);
+      throw new CustomException(CODE_EXPIRED);
     }
 
     // 인증코드 불일치
     if (!sha256Hash.matches(code, savedCode)) {
       signupVerificationRepository.increaseFailCount(email);
-      throw new CustomException(SIGNUP_CODE_INVALID);
+      throw new CustomException(CODE_INVALID);
     }
 
     // 인증 성공 처리 (redis 정리)
@@ -224,6 +227,94 @@ public class AuthService {
     // 회원가입 성공 후처리 (redis 정리)
     signupVerificationRepository.deleteVerified(request.getEmail());
     signupVerificationRepository.saveIpLimit(ip);
+  }
+
+  /** 비밀번호 찾기 메일 인증코드 전송 */
+  public void sendPasswordForgotCode(String email) {
+
+    // 가입여부
+    if (!memberRepository.existsByEmail(email)) {
+      throw new CustomException(MEMBER_NOT_FOUND);
+    }
+
+    // 메일 재전송 제한 - 쿨다운
+    if (passwordForgotVerificationRepository.hasCooldown(email)) {
+      throw new CustomException(TOO_MANY_REQUEST);
+    }
+
+    // 메일 전송 후 code 저장
+    String code = mailService.sendMailCode(email);
+    String codeHash = sha256Hash.hash(code);
+
+    passwordForgotVerificationRepository.saveCode(email, codeHash);
+
+    log.info("sendPasswordForgotCode email code={}", code);
+
+    // 실패 횟수 초기화 & 메일 재전송 제한 설정
+    passwordForgotVerificationRepository.deleteFailCount(email);
+    passwordForgotVerificationRepository.saveCooldown(email);
+  }
+
+  /** 비밀번호 찾기 메일 인증코드 확인 */
+  public void verifyPasswordForgotCode(String email, String code) {
+
+    // 인증 실패 횟수 초과 여부
+    int failCount = passwordForgotVerificationRepository.findFailCount(email);
+    if (failCount >= CODE_FAIL_CNT) {
+      throw new CustomException(TOO_MANY_VERIFICATION_ATTEMPTS);
+    }
+
+    // 저장된 인증코드 조회
+    String savedCode = passwordForgotVerificationRepository.findCode(email);
+    if (savedCode == null) {
+      throw new CustomException(CODE_EXPIRED);
+    }
+
+    // 인증코드 불일치
+    if (!sha256Hash.matches(code, savedCode)) {
+      passwordForgotVerificationRepository.increaseFailCount(email);
+      throw new CustomException(CODE_INVALID);
+    }
+
+    // 인증 성공 처리 (redis 정리)
+    passwordForgotVerificationRepository.deleteCode(email);
+    passwordForgotVerificationRepository.deleteFailCount(email);
+    passwordForgotVerificationRepository.deleteCooldown(email);
+    passwordForgotVerificationRepository.saveVerified(email, savedCode);
+  }
+
+  /** 비밀번호 재설정 */
+  @Transactional
+  public void resetForgottenPassword(PasswordForgotResetRequest request) {
+
+    LocalDateTime now = LocalDateTime.now();
+
+    // 이메일 조회
+    Member member = memberRepository.findByEmail(request.getEmail())
+      .orElseThrow(() -> new AuthException(MEMBER_NOT_FOUND));
+
+    // 비밀번호와 비밀번호확인 일치 여부
+    if(!request.isPasswordMatched()) {
+      throw new CustomException(PASSWORD_CONFIRM_NOT_MATCH);
+    }
+
+    // 이메일 인증 완료 여부
+    String verifiedCode = passwordForgotVerificationRepository.findVerified(request.getEmail());
+    if (verifiedCode == null) {
+      throw new CustomException(EMAIL_NOT_VERIFIED);
+    }
+
+    // 이전 비밀번호와 일치 여부
+    if (passwordEncoder.matches(request.getPassword(), member.getPassword())) {
+      throw new CustomException(PASSWORD_SAME_AS_OLD);
+    }
+
+    // 비밀번호 변경
+    member.changePassword(passwordEncoder.encode(request.getPassword()), now);
+
+    // 비밀번호 변경 성공 후처리 (redis 정리)
+    passwordForgotVerificationRepository.deleteVerified(request.getEmail());
+    refreshTokenRepository.deleteToken(member.getId());
   }
 
   /** 랜덤 프로필 선택 */

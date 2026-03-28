@@ -91,4 +91,11 @@ public class Member extends BaseTimeEntity {
       .build();
   }
 
+  /** 비밀번호 변경 */
+  public void changePassword(String encodedPassword, LocalDateTime now) {
+    this.password = encodedPassword;
+    this.loginFailCount = 0;
+    this.passwordChangedAt = now;
+  }
+
 }

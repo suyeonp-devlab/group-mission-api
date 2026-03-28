@@ -1,9 +1,6 @@
 package com.app.groupmissionapi.domain.auth.controller;
 
-import com.app.groupmissionapi.domain.auth.dto.request.LoginRequest;
-import com.app.groupmissionapi.domain.auth.dto.request.SignupCodeRequest;
-import com.app.groupmissionapi.domain.auth.dto.request.SignupRequest;
-import com.app.groupmissionapi.domain.auth.dto.request.VerifySignupCodeRequest;
+import com.app.groupmissionapi.domain.auth.dto.request.*;
 import com.app.groupmissionapi.domain.auth.dto.response.LoginResponse;
 import com.app.groupmissionapi.domain.auth.service.AuthService;
 import com.app.groupmissionapi.global.response.ApiResponse;
@@ -57,6 +54,30 @@ public class AuthController {
 
     String ip = getClientIp(httpRequest);
     authService.signup(request, ip);
+    return ApiResponse.success(null);
+  }
+
+  /** 비밀번호 찾기 메일 인증코드 전송 */
+  @PostMapping("/password/forgot/code")
+  public ApiResponse<Void> sendPasswordForgotCode(@Valid @RequestBody PasswordForgotCodeRequest request) {
+
+    authService.sendPasswordForgotCode(request.getEmail());
+    return ApiResponse.success(null);
+  }
+
+  /** 비밀번호 찾기 메일 인증코드 확인 */
+  @PostMapping("/password/forgot/code/verify")
+  public ApiResponse<Void> verifyPasswordForgotCode(@Valid @RequestBody VerifyPasswordForgotCodeRequest request) {
+
+    authService.verifyPasswordForgotCode(request.getEmail(), request.getCode());
+    return ApiResponse.success(null);
+  }
+
+  /** 비밀번호 재설정 */
+  @PostMapping("/password/forgot/reset")
+  public ApiResponse<Void> resetForgottenPassword(@Valid @RequestBody PasswordForgotResetRequest request) {
+
+    authService.resetForgottenPassword(request);
     return ApiResponse.success(null);
   }
 

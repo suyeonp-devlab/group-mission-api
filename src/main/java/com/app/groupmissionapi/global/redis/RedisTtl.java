@@ -19,4 +19,12 @@ public final class RedisTtl {
 
   public static final Duration SIGNUP_IP_LIMIT_TTL = Duration.ofSeconds(10);
 
+  public static final Duration PASSWORD_FORGOT_CODE_TTL = Duration.ofMinutes(5);
+
+  public static final Duration PASSWORD_FORGOT_FAIL_COUNT_TTL = Duration.ofMinutes(5);
+
+  public static final Duration PASSWORD_FORGOT_COOLDOWN_TTL = Duration.ofSeconds(60);
+
+  public static final Duration PASSWORD_FORGOT_VERIFIED_TTL = Duration.ofMinutes(10);
+
 }

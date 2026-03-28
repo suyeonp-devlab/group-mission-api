@@ -31,4 +31,20 @@ public final class RedisKeys {
     return "auth:signup:ip:" + ip;
   }
 
+  public static String passwordForgotCodeKey(String email) {
+    return "auth:password:forgot:code:" + email;
+  }
+
+  public static String passwordForgotFailCountKey(String email) {
+    return "auth:password:forgot:fail:" + email;
+  }
+
+  public static String passwordForgotCooldownKey(String email) {
+    return "auth:password:forgot:cooldown:" + email;
+  }
+
+  public static String passwordForgotVerifiedKey(String email) {
+    return "auth:password:forgot:verified:" + email;
+  }
+
 }
