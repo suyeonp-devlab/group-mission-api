@@ -16,7 +16,7 @@ public class GlobalExceptionHandler {
 
     return ResponseEntity
       .status(errorCode.getStatus())
-      .body(ApiResponse.fail(errorCode.getCode(), errorCode.getMessage()));
+      .body(ApiResponse.fail(errorCode.getCode(), e.getMessage()));
   }
 
   @ExceptionHandler(AuthException.class)

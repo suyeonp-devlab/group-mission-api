@@ -2,18 +2,21 @@ package com.app.groupmissionapi.domain.member.entity;
 
 import com.app.groupmissionapi.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
+
+import static lombok.AccessLevel.*;
 
 @Entity
 @Table(name = "members")
 @Getter
-@NoArgsConstructor
+@NoArgsConstructor(access = PROTECTED)
+@AllArgsConstructor(access = PRIVATE)
+@Builder(access = AccessLevel.PRIVATE)
 public class Member extends BaseTimeEntity {
 
-  private static final int PASSWORD_ERROR_CNT = 5;
+  private static final int PASSWORD_FAIL_CNT = 5;
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,9 +34,9 @@ public class Member extends BaseTimeEntity {
   @Column(nullable = false, length = 20)
   private String nickname;
 
-  // 프로필 이미지 경로
+  // 프로필 이미지 파일 경로
   @Column(nullable = false)
-  private String profileImageUrl;
+  private String profileImagePath;
 
   // 상태 (ACTIVE, INACTIVE, SUSPENDED 등)
   @Enumerated(EnumType.STRING)
@@ -61,13 +64,31 @@ public class Member extends BaseTimeEntity {
 
   /** 비밀번호 변경 강제 여부 */
   public boolean isPasswordChangeRequired() {
-    return this.loginFailCount >= PASSWORD_ERROR_CNT;
+    return this.loginFailCount >= PASSWORD_FAIL_CNT;
   }
 
   /** 로그인 성공 처리 */
   public void successLogin(LocalDateTime now) {
     this.loginFailCount = 0;
     this.lastLoginAt = now;
+  }
+
+  /** 회원 생성 */
+  public static Member create(String email
+                             ,String encodedPassword
+                             ,String nickname
+                             ,String profileImagePath
+                             ,LocalDateTime now) {
+
+    return Member.builder()
+      .email(email)
+      .password(encodedPassword)
+      .nickname(nickname)
+      .profileImagePath(profileImagePath)
+      .status(MemberStatus.ACTIVE)
+      .loginFailCount(0)
+      .passwordChangedAt(now)
+      .build();
   }
 
 }

@@ -1,4 +1,4 @@
-package com.app.groupmissionapi.domain.auth.service;
+package com.app.groupmissionapi.domain.auth.repository.redis;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -10,21 +10,21 @@ import static com.app.groupmissionapi.global.redis.RedisKeys.refreshTokenKey;
 
 @Service
 @RequiredArgsConstructor
-public class RefreshTokenService {
+public class RefreshTokenRepository {
 
   private final StringRedisTemplate stringRedisTemplate;
 
-  public void save(Long memberId, String refreshToken, long expirationMs) {
+  public void saveToken(Long memberId, String refreshTokenHash, long expirationMs) {
     String key = refreshTokenKey(memberId);
-    stringRedisTemplate.opsForValue().set(key, refreshToken, Duration.ofMillis(expirationMs));
+    stringRedisTemplate.opsForValue().set(key, refreshTokenHash, Duration.ofMillis(expirationMs));
   }
 
-  public String find(Long memberId) {
+  public String findToken(Long memberId) {
     String key = refreshTokenKey(memberId);
     return stringRedisTemplate.opsForValue().get(key);
   }
 
-  public void delete(Long memberId) {
+  public void deleteToken(Long memberId) {
     String key = refreshTokenKey(memberId);
     stringRedisTemplate.delete(key);
   }
